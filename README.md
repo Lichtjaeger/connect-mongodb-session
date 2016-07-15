@@ -1,23 +1,13 @@
-# connect-mongodb-session
+# koa-mongodb-session
 
-[MongoDB](http://mongodb.com)-backed session storage for [connect](https://www.npmjs.org/package/connect) and [Express](http://www.expressjs.com). Meant to be a well-maintained and fully-featured replacement for modules like [connect-mongo](https://www.npmjs.org/package/connect-mongo)
-
-[![Build Status](https://travis-ci.org/mongodb-js/connect-mongodb-session.svg?branch=master)](https://travis-ci.org/mongodb-js/connect-mongodb-session) [![Coverage Status](https://coveralls.io/repos/mongodb-js/connect-mongodb-session/badge.svg?branch=master)](https://coveralls.io/r/mongodb-js/connect-mongodb-session?branch=master)
+[MongoDB](http://mongodb.com)-backed session storage for [koa](http://koajs.com/) and it's [koa-generic-session](https://github.com/koajs/generic-session) module. Meant to be a well-maintained and fully-featured replacement for modules like [koa-generic-session-mongo](https://github.com/pavelvlasov/koa-generic-session-mongo)
 
 # API
 
 ## MongoDBStore
 
-This module exports a single function which takes an instance of connect
-(or Express) and returns a `MongoDBStore` class that can be used to
+This module exports a `MongoDBStore` class that can be used to
 store sessions in MongoDB.
-
-#### It can store sessions for Express 4
-
-If you pass in an instance of the
-[`express-session` module](http://npmjs.org/package/express-session)
-the MongoDBStore class will enable you to store your Express sessions
-in MongoDB.
 
 The MongoDBStore class has 2 required options:
 
@@ -25,18 +15,17 @@ The MongoDBStore class has 2 required options:
 2. `collection`: the MongoDB collection to store sessions in
 
 **Note:** You can pass a callback to the `MongoDBStore` constructor,
-but this is entirely optional. The Express 3.x example demonstrates
-that you can use the MongoDBStore class in a synchronous-like style: the
-module will manage the internal connection state for you.
+but this is entirely optional. The module will manage the internal connection state for you.
 
 ```javascript
-    
-    var express = require('express');
-    var session = require('express-session');
-    var MongoDBStore = require('connect-mongodb-session')(session);
 
-    var app = express();
-    var store = new MongoDBStore(
+    const Koa = require('koa');
+    const session = require('koa-generic-session');
+    const convert = require('koa-convert');
+    const MongoDBStore = require('koa-mongodb-session');
+
+    const app = new Koa();
+    const store = new MongoDBStore(
       {
         uri: 'mongodb://localhost:27017/connect_mongodb_session_test',
         collection: 'mySessions'
@@ -48,70 +37,21 @@ module will manage the internal connection state for you.
       assert.ok(false);
     });
 
-    app.use(require('express-session')({
-      secret: 'This is a secret',
+    app.keys = ['This is a secret']
+
+    app.use(convert(session({
       cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
       },
-      store: store,
-      // Boilerplate options, see:
-      // * https://www.npmjs.com/package/express-session#resave
-      // * https://www.npmjs.com/package/express-session#saveuninitialized
-      resave: true,
-      saveUninitialized: true
-    }));
+      store
+    })))
 
-    app.get('/', function(req, res) {
-      res.send('Hello ' + JSON.stringify(req.session));
+    app.use(ctx => {
+      ctx.body = `Hello ${JSON.stringify(ctx.session)}`;
     });
 
-    server = app.listen(3000);
-  
-```
+    app.listen(3000);
 
-#### It can store sessions for latest Express 3.x
-
-If you're using Express 3.x, you need to pass the Express module itself
-rather than the `express-session` module. Session storage is part of
-the Express core in 3.x but not in 4.x.
-
-**Note:** This example doesn't pass a callback to the `MongoDBStore`
-constructor. This module can queue up requests to execute once the
-database is connected. However, the `MongoDBStore` constructor will
-throw an exception if it can't connect and no callback is passed.
-
-```javascript
-    
-    var express = require('../vendor/express-3.18.1');
-
-    var MongoDBStore = require('connect-mongodb-session')(express);
-
-    var app = express();
-    var store = new MongoDBStore(
-      {
-        uri: 'mongodb://localhost:27017/connect_mongodb_session_test',
-        collection: 'mySessions'
-      });
-
-    app.use(express.session({
-      secret: 'This is a secret',
-      cookie: {
-        maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
-      },
-      store: store,
-      // Boilerplate options, see:
-      // * https://www.npmjs.com/package/express-session#resave
-      // * https://www.npmjs.com/package/express-session#saveuninitialized
-      resave: true,
-      saveUninitialized: true
-    }));
-
-    app.get('/', function(req, res) {
-      res.send('Hello ' + JSON.stringify(req.session));
-    });
-
-    server = app.listen(3000);
-  
 ```
 
 #### It throws an error when it can't connect to MongoDB
@@ -121,14 +61,14 @@ errors. If you don't pass a callback to the `MongoDBStore` constructor,
 `MongoDBStore` will `throw` if it can't connect.
 
 ```javascript
-    
-    var express = require('../vendor/express-3.18.1');
 
-    var MongoDBStore = require('connect-mongodb-session')(express);
+    const Koa = require('koa');
+    const session = require('koa-generic-session');
+    const convert = require('koa-convert');
+    const MongoDBStore = require('koa-mongodb-session');
 
-    var app = express();
-    var numExpectedSources = 2;
-    var store = new MongoDBStore(
+    const app = new Koa();
+    const store = new MongoDBStore(
       {
         uri: 'mongodb://bad.host:27000/connect_mongodb_session_test?connectTimeoutMS=10',
         collection: 'mySessions'
@@ -141,24 +81,20 @@ errors. If you don't pass a callback to the `MongoDBStore` constructor,
       // Also get an error here
     });
 
-    app.use(express.session({
-      secret: 'This is a secret',
+    app.keys = ['This is a secret']
+
+    app.use(convert(session({
       cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
       },
-      store: store,
-      // Boilerplate options, see:
-      // * https://www.npmjs.com/package/express-session#resave
-      // * https://www.npmjs.com/package/express-session#saveuninitialized
-      resave: true,
-      saveUninitialized: true
-    }));
+      store
+    })))
 
-    app.get('/', function(req, res) {
-      res.send('Hello ' + JSON.stringify(req.session));
+    app.use(ctx => {
+      ctx.body = `Hello ${JSON.stringify(ctx.session)}`;
     });
 
-    server = app.listen(3000);
-  
+    app.listen(3000);
+
 ```
 
